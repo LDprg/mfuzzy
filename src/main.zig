@@ -1,17 +1,54 @@
 const std = @import("std");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // const allocator = gpa.allocator();
+    // defer {
+    //     const deinit_status = gpa.deinit();
+    //     if (deinit_status == .leak) @panic("Memory leaked!");
+    // }
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    var items = [_][]const u8{"kitten"};
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    const search = "sitting";
 
-    try bw.flush(); // don't forget to flush!
+    fuzzy(@constCast(&items), search);
+}
+
+pub fn fuzzy(items: [][]const u8, search: []const u8) void {
+    std.debug.print("Search for {s} in: ", .{search});
+    for (items) |str|
+        std.debug.print("\"{s}\" ", .{str});
+    std.debug.print("\n\n", .{});
+
+    var bestDistance: i32 = std.math.maxInt(i32);
+    var bestString: []const u8 = "";
+
+    for (items) |str| {
+        const dist = levenshteinDistanceRecursive(search, str);
+
+        if (dist < bestDistance) {
+            bestString = str;
+            bestDistance = dist;
+        }
+    }
+
+    std.debug.print("Best for \"{s}\" is \"{s}\" with distance {}\n", .{ search, bestString, bestDistance });
+}
+
+pub fn levenshteinDistanceRecursive(str1: []const u8, str2: []const u8) i32 {
+    if (str1.len == 0)
+        return @intCast(str2.len);
+
+    if (str2.len == 0)
+        return @intCast(str1.len);
+
+    if (str1[0] == str2[0])
+        return levenshteinDistanceRecursive(str1[1..], str2[1..]);
+
+    return 1 + @min(
+        levenshteinDistanceRecursive(str1[1..], str2),
+        levenshteinDistanceRecursive(str1, str2[1..]),
+        levenshteinDistanceRecursive(str1[1..], str2[1..]),
+    );
 }
